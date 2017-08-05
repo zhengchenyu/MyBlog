@@ -7,7 +7,7 @@ tags:
 <script type="text/javascript" src="/Users/zcy/Desktop/study/git/MathJax-master/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
 # Softmax Regression 下面介绍一下指数族分布的另外一个例子。之前的逻辑回归中，可以用来解决二分类的问题。对于有k中可能结果的时候，问题就转化为多分类问题了，也就是接下来要说明的softmax regression问题。
-
+s
 ##	 1 函数定义在进行下一步推导前，我们先定义部分辅助函数。我们这里事先定义一个k-1维向量\\(T(y)\\)，这里具体对应于指数族分布的\\(T(y)\\),具体定义如下:
 
 {% raw %}
@@ -16,8 +16,8 @@ $$T(1) = \left[ \begin{gathered}  1 \hfill \\\  0 \hfill \\\  0 \hfill \\\  
 
 我们定义\\(T(y) _1\\)表示的\\(T(y)\\)第一个元素，其他依次类推。然后再引入一个函数，具体定义如下:
 
-{% raw %}$$1 \{ true\} = 1$$
-$$1 \{ false\} = 0$$
+{% raw %}$$1\{ true\} = 1$$
+$$1\{ false\} = 0$$
 {% endraw %}
  
 > 可以通过带入值的方式验证上式。## 2	模型推导在softmax中,我们知道\\(y \in \\{ 1,2,...,k\\}\\)。我们设置\\(y=1\\)的概率为\\(\phi _1\\),
@@ -73,7 +73,7 @@ $${\phi _i} = \frac{e^{\eta _i}}{\sum\limits _{j = 1}^k {e^{\eta _j}}}$$
 由于指数组分布假设是关于输入的线性函数，所以得到在已知\\(x\\)和\\(\theta\\)的情况下\\(y=i\\)的概率的公式，如下：{% raw %}$$p(y = i|x,\theta ) = {\phi _i} = \frac{e^{\eta _i}}{\sum\limits _{j = 1}^k {e^{\eta _j}}} = \frac{e^{\theta _i^Tx}}{\sum\limits _{j = 1}^k {e^{\theta _j^Tx}}}$$
 {% endraw %}
 
-这里我们可以得到\\({h_\theta }(x)\\),如下:{% raw %}$${h_\theta }(x) = E[T(y)|x,\theta ] = E[\left( \begin{gathered}  1\\{ y = 1\\}  \hfill \\\  1\\{ y = 2\\}  \hfill \\\  ... \hfill \\\  1\\{ y = k - 1\\}  \hfill \\\ \end{gathered}  \right)|x,\theta ]$$
+这里我们可以得到\\({h_\theta }(x)\\),如下:{% raw %}$${h_\theta }(x) = E[T(y)|x,\theta ] = E[\left( \begin{gathered}  1\{ y = 1\}  \hfill \\\  1\{ y = 2\}  \hfill \\\  ... \hfill \\\  1\{ y = k - 1\}  \hfill \\\ \end{gathered}  \right)|x,\theta ]$$
 
 $${h_ \theta }(x) = E[\left( \begin{gathered}  {\phi _1} \hfill \\\  {\phi _2} \hfill \\\  ... \hfill \\\  {\phi _{k - 1}} \hfill \\\ \end{gathered}  \right)|x,\theta ] = \left( \begin{gathered}  \frac{e^{\theta _1^Tx}}{\sum\limits _{j = 1}^k {e^{\theta  _j^Tx}}} \hfill \\\  \frac{e^{\theta _2^Tx}}{\sum\limits _{j = 1}^k {e^{\theta _j^Tx}}} \hfill \\\  ... \hfill \\\  \frac{e^{\theta _{k - 1}^Tx}}{\sum\limits _{j = 1}^k {e^{\theta _j^Tx}}} \hfill \\\\end{gathered}  \right)$$
 {% endraw %}> 其中,\\(k\\)为取值的可能集合的大小，\\(\theta\\)为一个\\(k*n\\)的矩阵。到这里我们可以定义我们的损失函数了，如下:{% raw %}$$J(x) = \frac{1}{2}\sum\limits _{i = 1}^m {{(T(y) - {h _\theta }(x))}^2}$$
@@ -93,7 +93,7 @@ $$\sum\limits _{i = 1}^m {p(y = {y^i}|x,\theta )}  = \sum\limits _{i = 1}^m {\pr
 
 {% raw %}
 $$l(\theta ) = \sum\limits _{i = 1}^m {\ln \prod\limits _{l = 1}^k {(\frac{e^{\theta _l^Tx}}{\sum\limits _{j = 1}^k {e^{\theta _j^Tx}}})^{1\{{y^i} = l\}}}}$${% endraw %}
-当且仅当\\({y^i} = l\\)的时候, \\(^{1\\{y^i=l\\} = 1}\\)。其他值为0，我们可以将连乘转化，如下：{% raw %}$$l(\theta ) = \sum\limits _{i = 1}^m {\ln (\frac{e^{\theta _{y^i}^Tx}}{\sum\limits _{j = 1}^k {e^{\theta _j^Tx}}})}  = \sum\limits _{i = 1}^m {\ln [\theta _{y^i}^Tx - \ln \sum\limits _{j = 1}^k {e^{\theta _j^Tx}}]} $$
+当且仅当\\({y^i} = l\\)的时候, \\(^{1\{y^i=l\\} = 1}\)。其他值为0，我们可以将连乘转化，如下：{% raw %}$$l(\theta ) = \sum\limits _{i = 1}^m {\ln (\frac{e^{\theta _{y^i}^Tx}}{\sum\limits _{j = 1}^k {e^{\theta _j^Tx}}})}  = \sum\limits _{i = 1}^m {\ln [\theta _{y^i}^Tx - \ln \sum\limits _{j = 1}^k {e^{\theta _j^Tx}}]} $$
 {% endraw %}
 
 然后对其求偏导数,对\\(y _i=f\\)的时候后有：{% raw %}$$\frac{\partial l(\theta )}{\partial {\theta _f}} = \sum\limits _{i = 1}^m {\ln [{x _f} - \frac{e^{\theta _f^Tx}{x _f}}{\sum\limits _{j = 1}^k {e^{\theta _j^Tx}}}]}$$
