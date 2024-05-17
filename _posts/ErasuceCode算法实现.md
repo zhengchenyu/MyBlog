@@ -9,8 +9,10 @@ EC算法在存储领域和通信领域都有广泛的应用。在分布式存储
 # 1 算法概述
 
 本文以RS-6-3算法为例, 存在6个数据块和3个校验块。EC算法的两个基本问题:
+
 * 如何通过数据块生成校验块?
 * 如何通过部分数据块和校验块恢复丢失的数据块?
+
 ## 1.1 生成校验块
 生成校验块即编码过程([encode](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/ErasureCoder.java#L29))。对6个数据块依次取出byte, 即d<sub>0</sub>,d<sub>1</sub>,d<sub>2</sub>,d<sub>3</sub>,d<sub>4</sub>,d<sub>5</sub>。如下图所示，用编码矩阵([encodeMatrix](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/ErasureCoder.java#L14C24-L14C36))乘以对应的数据块,即得到原有的数据d<sub>0</sub>,d<sub>1</sub>,d<sub>2</sub>,d<sub>3</sub>,d<sub>4</sub>,d<sub>5</sub>和对应的校验字节c<sub>0</sub>,c<sub>1</sub>,c<sub>2</sub>([编码过程](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/ErasureCoder.java#L50))。对数据块的所有字节依次执行上述的操作就得到了校验块。
 
@@ -50,10 +52,12 @@ EC算法在存储领域和通信领域都有广泛的应用。在分布式存储
 
 本文使用了容易理解的高斯消元法求逆([inverse](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/math/Matrix.java#L73))。假设当前6 \* 6矩阵为A,  在右侧再拼接6 \* 6的单位矩阵E，得到矩阵[A | E]。如果使用A<sup>-1</sup>乘以这个矩阵，会得到[E|A<sup>-1</sup>]。这样我们只需将A矩阵转化为单元矩阵，E矩阵自然就变成了A<sup>-1</sup>。([高斯消元求逆](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/math/Matrix.java#L73C24-L73C31))
 具体的过程如下:
-按照行依次执行如下的过程
+按照行依次执行如下的过程:
+
 * (1) 对第i行, 找到第i行第i列的值。([Step1](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/math/Matrix.java#L120))
 * (2) 然后计算该值的乘法逆元。然后让该行的每个元素均乘以这个乘法逆元。([Step2](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/math/Matrix.java#L126))
 * (3) 对其他行j，使用第i行经过线性变换将地地j行第i列的值消为0。
+
 经过这三步变换为，对于第i列，有且只有地i行的数据为1，其他均为0。对每一行均执行如下操作，左侧变得到了单位矩阵，右侧的结果也即A<sup>-1</sup>。
 
 > 对于有理数域中，乘以乘法逆元即除法，加上加法逆元即减法。这样描述对伽罗华域中的数学运算的描述更准确。
@@ -80,6 +84,7 @@ EC算法在存储领域和通信领域都有广泛的应用。在分布式存储
 ## 3.1  GF(7)
 
 首先给出如下定义:
+
 * 加法逆元: 给定x，如果存在x'，使得x+x'=x'+x=0，则称x'是x的加法逆元。
 * 乘法逆元: 给定x，如果存在x'，使得x \* x'=x' \* x=e，则称x'为x的乘法逆元。其中e为该群的单位元。对于G(7)，e为1。
 
