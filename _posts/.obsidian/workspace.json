@@ -1,0 +1,158 @@
+{
+  "main": {
+    "id": "bd257eba06c06244",
+    "type": "split",
+    "children": [
+      {
+        "id": "d0d7d54e76bf0761",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "64f06d2ead215559",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "59eda192e7827de3",
+    "type": "split",
+    "children": [
+      {
+        "id": "d220d61aa14c6e4a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0b521ef32365a58f",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "d6db21b976a74ab9",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "e7e7f49784f5f3a2",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "92e9cbc1f313f7ff",
+    "type": "split",
+    "children": [
+      {
+        "id": "d30a972b0f3dd2a3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ce54603658819677",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "1b91de3f2a349c78",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "3d569684cc608b0c",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              }
+            }
+          },
+          {
+            "id": "63604eaec0b4d3d8",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false
+    }
+  },
+  "active": "64f06d2ead215559",
+  "lastOpenFiles": [
+    "ErasuceCode算法实现.md",
+    "RSS-远程Merge的设计.md",
+    "ec范德蒙矩阵行列式.png",
+    "ec编码矩阵 1.png",
+    "ec编码矩阵.png",
+    "().md",
+    "ec编码过程.jpg",
+    "Untitled.canvas",
+    "Untitled",
+    "2024-04-22.md",
+    "RSS-远程Merge的设计EN.md",
+    "MyFirstBlog.md",
+    "机器学习-3-2-非监督学习之主成分分析.md",
+    "机器学习-2-6-监督学习之朴素贝叶斯算法.md"
+  ]
+}

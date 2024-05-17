@@ -84,16 +84,38 @@ combine和sort分别使用了ExternalAppendOnlyMap和ExternalSorter，当内存�
 
 而事实上, uniffle已经解决(1), (2)。对于(3), 如果有效的调整参数，是很难产生磁盘文件的。事实上只有(4)是本文需要讨论的。
 
-# 2 需求分析
+# 2 方案的选择
+为了解决在Reduce端Merge可能会spill到磁盘的问题，主要有两个方案:
+* (1) Shuffle Server端进行Merge
+* (2) Reduce端按需Merge
 
-## 2.1 哪类任务需要远程merge?
+## 2.1 方案1: ShuffleServer端进行Merge
+将Reduce的Merge过程移到ShuffleServer端，ShuffleServer会对Map端发来的局部排序后的Records进行Merge，合并成一个全局排序的Records序列。Reduce端直接按照哦Records序列的顺序读取。
+* 优点: 不需要过多内存和网络RPC。
+* 缺点: Shuffle Server端需要解析Key, Value和Comparator。Shuffle端不能combine。
+
+## 2.2 方案2: Reduce端按需Merge
+<img src="/images/rss/on_demand_merge.png" width=50% height=50% text-align=center/>
+由于Reduce端内存有限，为了避免在Reduce端进行Merge的时候spill数据到磁盘。Reduce在获取Segment只能读取每个segment的部分buffer，然后对所有buffer进行Merge。然后对然后当某一个segment的部分buffer读取完成，会继续读取这个segment的下一块buffer，将这块buffer继续加到merge过程中。
+这样有一个问题，Reduce端从ShuffleServer读取数据的次数大约为为segments_num * (segment_size / buffer_size)，对于大任务这是一个很大的值。过多的RPC意味着性能的下降。
+
+> 这里的segment是指排序后record集合，可以理解为record已经按照key排序后的block。
+
+* 优点: Shuffle Server不需要做额外的任何事情。
+* 缺点: 过多的RPC。
+
+**本文选择方案1，接下来的内容主要针对于方案1进行讨论。**
+
+# 3 需求分析
+
+## 3.1 哪类任务需要远程merge?
 
 当前uniffle的map端操作已经不再需要磁盘操作。本文主要考虑reduce端的情况。主要分如下几种情况:
 * (1) 对于spark的非排序且非聚集、tez unordered io，Record是来之即用的，不需要有任何的全局的聚合和排序操作，只需要非常少的内存。当前版本的uniffle在内存设置合理的情况下是不会使用磁盘的。使用当前uniffle的方案即可。本文不会讨论这方面的内容。
 * (2) 对于spark的排序或聚集任务、tez ordered io、mapreduce，由于需要全局排序或聚集，内存可能不够用，可能会将Record spill到磁盘。本文主要讨论这种情况。
 **综上可知，remote merge仅用于需要排序或聚集的shuffle。**
 
-## 2.2 ShuffleServer如何进行排序?
+## 3.2 ShuffleServer如何进行排序?
 
 对于排序类的操作，一般会在Map进行排序得到一组局部排序的记录，这里称之为segment。然后Reduce会获取所有的segment, 并进行归并，Spark, MR, Tez都是用了最小堆K路归并排序。远程排序依旧可以使用这种方式。
 
@@ -101,35 +123,75 @@ BufferManager和FlushManager维护着block在内存和磁盘中的信息。我�
 
 在ShuffleServer端引入排序后产生一个副作用: 即需要将该Shuffle的KeyClass和ValueClass以及KeyComparator传递给ShuffleServer。
 
-## 2.3 ShuffleServer如何进行combine?
+## 3.3 ShuffleServer禁止combine
 
-Combine一般都是用户自定义的操作，因此禁止ShuffleServer端进行Combine操作。如果在Reduce端进行Combine，岂不是违背了我们避免在任务端进行磁盘操作的主题？事实上我们不必使用ExternalAppendOnlyMap进行combine。如果从ShuffleServer获取的Record是按照key排序的，那么意味着相同的key已经组织在一起了，只需要很少的内存就可以combine。
+Combine一般都是用户自定义的操作，因此禁止ShuffleServer端进行Combine操作。
 
-## 2.4 Writer如何写?
-
-按照现有方式写即可。
-
-## 2.5 Reader如何进行读？
-
-当前uniffle的shuffle reader使用blockid作为读的标记，很容易校验是否得到准确完整的Record。对于远程merge，MergeManager已经将原有的Block集合合并为一个新的按key进行排序的序列。因此不能在使用map段生成的blockid了。
-我们将使用一种新的方式读取Records。在MergerManager进行全局Merge的时候，会生成索引。Reader会按照该索引进行读取。
-
-> 注: 原则上使用key作为读索引更符合语义，第一版demo程序也是这么设计的。但是他对于处理数据倾斜的问题不够友好，所以放弃该方案。
-
-# 3 方案设计
+# 4 架构设计
+## 4.1 RemoteMerge的基本流程
 
 <img src="/images/rss/remote_merge_structure.png" width=50% height=50% text-align=center/>
 
-流程如下:
-* (1) AM/Driver调用registerShuffle方法，会额外注册keyClass, valueClass和keyComparator.
-* (2) Map端生产Records，在RMWriteBufferManager进行排序和conbine，并将block发送给ShuffleServer。当发送完成的时候，调用reportShuffleResult，会额外的发送taskattemptId，主要为了避免推测执行造成数据丛洪福。
-* (3) shuffle server端会将数据存在缓存中，或者通过flush manager缓存到本地文件系统或远程文件系统。
-* (4) shuffle server端增加一个新的MergeManager，对每个shuffle进行管理。每个partition下会记录Segment信息，每个Segment的数据来自于(3)中提到的内存或文件。当某个Shuffle的所有数据都汇报完成后，会将所有的Segment合并为一个MergedSegment。得到了一个按Key进行排序的Records。在合并最后的MergedSegment的过程中，会添加索引，便于Reduce读取。
-* (5) Reducer按照索引顺序地读取MergedSegment，在读取的过程中顺便进行Reducer端的combine。最后将结果交给下游是有。
 
-## 4 计划
-主要计划:
-* 统一序列化
-* ufile, shuffle writer和reader 
-* Merger与 Merger Manager开发
-* 架构适配
+下面介绍一下Remote Merge的流程:
+* (1) 注册
+AM/Driver调用registerShuffle方法，会额外注册keyClass, valueClass和keyComparator. 这些信息主要用于ShuffleServer在合并的时候对Record进行解析和排序。
+* (2) sendShuffleData
+sendShuffleData逻辑与现有的RSS任务基本保持一致。唯一区别是使用统一的序列化器和反序列化器，这样可以保证无论是哪一种框架，ShuffleServer都可以正常的解析Record.
+* (3) buffer and flush
+ shuffle server端会将数据存在缓存中，或者通过flush manager缓存到本地文件系统或远程文件系统。这里还是复用原来的ShuffleServer的逻辑。
+* (4) reportUniqueBlocks
+提供了一个新的API, 即reportUniqueBlocks。Reduce端会根据map产生的block进行去重，然后将得到有效block集合通过reportUniqueBlocks发送给ShuffleServer。ShuffleServer收到有效的blocks集合后，会触发Remote Merge。Remote Merge的结果会像普通的block一样写入到bufferPool, 避免的时候会flush到磁盘中。RemoteMerge产生的结果即为普通的block，但是为了方便说明，这里称之为merged block。merged block记录的是按照key排序后的结果，因此读取merged block的时候，需要按照blockid的顺序依次递增读取。
+* (5) getSortedShuffleData
+Reduce会按照block序号的顺序读取merged block，然后根据一定的条件选择何时为reduce计算使用。
+
+## 4.2 从Record的视角分析流程
+我们可以WordCount为例子解释Record在整个过程中的流转。本例子中有两个分区以及一个Reduce，即一个Reduce处理两个分区的数据。
+
+<img src="/images/rss/remote_merge_from_record_perspective.jpg" width=50% height=50% text-align=center/>
+
+* (1) MAP端
+Map端处理文档数据后，会进行排序。对于Map1, 由于存在两个分区，以奇数为key的record会写入到block101中，以偶数为key的record会写入到block102中。Map2同理。注意这里block中的Record都是已经排序后的。
+* (2) Map端发送数据
+Map端通过sendShuffleData将block发送给ShuffleServer， ShuffleServer会将其存储到bufferPool中。
+这里指的注意的是，在注册的时候会会注册APP1名字的app的同时，也会注册APP1@RemoteMerge的app，稍后会介绍它。
+* (3) ShuffleServer端Merge
+Reduce启动后，会调用reportUniqueBlocks汇报可用的block集合，同时触发ShuffleServer中对应的partition进行Merge。Merge的结果在这个分区下全局排序的Record集合。
+然后的问题是Merge的结果存在那里？Merge过程是在内存中发生的，每当Merge一定数量的Record后，会将这些结果写到一个新的block中。为了与原来的appid区分，这里会将这组block放在一个以"@RemoteMerge"结尾的appid进行管理。这组新的block的blockid是从1开始递增的，而且是经过全局排序的。即每个block内部的record是排序的，blockid=1的records一定小于等于blockid=2的records。
+* (4) Reduce端读
+根据前面的分析，Reduce端只要读取以”@RemoteMerge“结尾的appid管理的block即可。Reduce读取block的时候从blockid=1的block开始，按照blockid顺序读取即可。我们知道Reduce进行计算的时候，是按照顺序计算的。由于我们在ShuffleServer端获取的数据已经是排序后的，所以每次只需要从ShuffleServer端获取少量的数据即可，这样就实现了从ShuffleServer端按需读取，大大降低了使用内存。
+这里还存在两种特殊的情况，详细5.5
+
+# 5 计划
+
+## 5.1 统一序列化器
+由于需要在ShuffleServer端进行Merge, 需要提取出独立于计算框架的统一序列化器。这里提炼出两类序列化器: (1) Writable (2) Kryo。Writable序列化用于处理org.apache.hadoop.io.Writable接口的类，用于MR和TEZ框架。Kryo可以序列化绝大多数的类，一般用于Spark框架。
+## 5.2 RecordsFileWriter/RecordFileReader
+提供关于处理Record的抽象方法
+## 5.3 Merger
+提供基础的Merger服务，对多个数据流按照key进行merge。采用最小堆K路归并排序，对已经进行局部排序的数据流进行归并排序。
+## 5.4 MergeManager
+用于在服务端对Records进行Merge。
+## 5.5 RMRecordsReader
+一般来讲Reduce端在读取数据的情况，直接发给下游计算即可。但是存在两种特殊的情况:
+(1) 对于存在需要在Merge进行combine的情况，我们需要等待所有相同的key都达到后进行combine，然后再发给下游。
+(2) 对于spark和tez, reduce端可以会读取多个分区的数据。因此我们需要对多个分区的数据在reduce端再进行一次merge，然后在发给下游。
+RMRecordsReader是用于读取排序后数据的工具。大致的架构如下:
+
+<img src="/images/rss/rm_records_reader.png" width=50% height=50% text-align=center/>
+
+图中描述了单个Reduce处理两个分区的情况。RecordsFetcher线程会读取对应分区的block，然后解析成Records。然后发送到combineBuffers中。RecordCombiner从combineBuffer中读取Records，当某个key的所有records都收集完成，会进行combine操作。结果会发送给mergedBuffer。RecordMerge会获取所有mergedBuffer，然后在内存中再进行一次归并排序。最终得到全局排序的结果给下游使用。
+
+## 5.6 框架适配
+适配MR,Tez,Spark三种架构。
+
+> 笔者已使用线上任务对MR和Tez进行了大规模压测。Spark目前仅进行了一些基础的examples的测试，仍需要大量测试。
+
+## 5.7 隔离的classloader
+对于不同版本的keyclass, valueclass以及comparatorclass, 使用隔离的classloader加载。
+
+
+# 5 特别注意
+* 不支持spark的javardd，因为spark javardd的类型会被擦除。
+* 适当提高服务器的max open file的配置。因为合并的时候可能会长时间持有文件。
+* 适当降低rss.server.buffer.capacity, 因为remote merge的过程需要更多的额外内存。
