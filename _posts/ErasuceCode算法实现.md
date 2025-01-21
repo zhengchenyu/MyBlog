@@ -51,8 +51,7 @@ EC算法在存储领域和通信领域都有广泛的应用。在分布式存储
 ## 2.2 高斯消元求逆
 
 本文使用了容易理解的高斯消元法求逆([inverse](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/math/Matrix.java#L73))。假设当前6 \* 6矩阵为A,  在右侧再拼接6 \* 6的单位矩阵E，得到矩阵[A | E]。如果使用A<sup>-1</sup>乘以这个矩阵，会得到[E|A<sup>-1</sup>]。这样我们只需将A矩阵转化为单元矩阵，E矩阵自然就变成了A<sup>-1</sup>。([高斯消元求逆](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/math/Matrix.java#L73C24-L73C31))
-具体的过程如下:
-按照行依次执行如下的过程:
+对每一行行依次执行如下的过程:
 
 * (1) 对第i行, 找到第i行第i列的值。([Step1](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/math/Matrix.java#L120))
 * (2) 然后计算该值的乘法逆元。然后让该行的每个元素均乘以这个乘法逆元。([Step2](https://github.com/zhengchenyu/SimpleErasureCode/blob/24be76083a0c3172f1d2fe7af8e1ad972935657f/src/main/java/zcy/ec/coder/math/Matrix.java#L126))
@@ -86,7 +85,7 @@ EC算法在存储领域和通信领域都有广泛的应用。在分布式存储
 首先给出如下定义:
 
 * 加法逆元: 给定x，如果存在x'，使得x+x'=x'+x=0，则称x'是x的加法逆元。
-* 乘法逆元: 给定x，如果存在x'，使得x \* x'=x' \* x=e，则称x'为x的乘法逆元。其中e为该群的单位元。对于G(7)，e为1。
+* 乘法逆元: 给定x，如果存在x'，使得x \* x'=x' \* x=e，则称x'为x的乘法逆元。其中e为该群的单位元。对于GF(7)，e为1。
 
 我们定义一种新的运算，即模7运算。对于加法和乘法运算，我们会将结果然后模7。譬如, 8 + 3 = 11 mod 7 = 4。8 \* 3 = 24 mod  7 = 3。
 对于加法逆元和乘法逆元，根据定义我们可以穷举加法和乘法计算，根据结果得到对应的逆元。譬如, 4 + 3 = 7 mod 7 = 0，我们就说4和3互为加法逆元。2 \* 4 = 8 mod 7 = 1，我们就说2和4互为乘法逆元。
@@ -100,7 +99,7 @@ EC算法在存储领域和通信领域都有广泛的应用。在分布式存储
 ### 3.2.1 基本原理
 实际的数字存储的值是0-255, 那么是否意味着我们可以直接使用GF(256)呢? 答案是不可以的。因为256是合数，譬如16 \* 16 = 256 mod 256 = 0，那么16就不存在乘法逆元，也就难以进行边界吗。
 因此需要引入多项式的运算，且要求同指数幂下遵循GF(2)。模数为不可约多项式。对于不可约多项式a, 无法找到两个不为1的多项式b和c使得b \* c = a。可以使用穷举法得到每个多项式的加法逆元和乘法逆元。事实上只要集合内的每个元素都有1对1对应的乘法逆元，就可以满足我们的要求。文献1的表4.6也通过穷举证明了GF(2<sup>3</sup>)的有效性。
-多项式的计算与对byte的编码有什么关系呢？由于多项式的同指数幂是GF(2)，也就意味着对于多项式a<sub>0</sub> + a<sub>1</sub>x + a<sub>2</sub>x<sup>2</sup> + a<sub>3</sub>x<sup>3</sup> + a<sub>4</sub>x<sup>4</sup> + a<sub>5</sub>x<sup>5</sup>  +  a<sub>6</sub>x<sup>6</sup> +  a<sub>7</sub>x<sup>7</sup> ，比有a<sub>i</sub> 为0和1。如果a<sub>0</sub>为第0位，a<sub>1</sub>为第1位，依次类推，这组系数就是一个byte。这样就把要存储的byte与多项式运算结合了。
+多项式的计算与对byte的编码有什么关系呢？由于多项式的同指数幂是GF(2)，也就意味着对于多项式a<sub>0</sub> + a<sub>1</sub>x + a<sub>2</sub>x<sup>2</sup> + a<sub>3</sub>x<sup>3</sup> + a<sub>4</sub>x<sup>4</sup> + a<sub>5</sub>x<sup>5</sup>  +  a<sub>6</sub>x<sup>6</sup> +  a<sub>7</sub>x<sup>7</sup> ，a<sub>i</sub> 为0和1。如果a<sub>0</sub>为第0位，a<sub>1</sub>为第1位，依次类推，这组系数就是一个byte。这样就把要存储的byte与多项式运算结合了。
 
 ### 3.2.2 计算
 本章主要介绍如何计算GF(2<sup>8</sup>)。对于加法和乘法，我们直接使用多项式运算。对于加法逆元和乘法逆元，我们穷举加法和乘法运算，然后通过码表来得到加法和乘法逆元。
