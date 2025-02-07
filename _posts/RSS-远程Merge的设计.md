@@ -55,11 +55,11 @@ SortShuffleWriter主要通过ExternalSorter来实现具体逻辑。ExternalSorte
 
 三种writer的比较
 
-| writer | 优点                                                      | 缺点                                                     | 场景                                                                                         |
-| --- |---------------------------------------------------------|--------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| BypassMergeSortShuffleWriter | (1) 只经过一次序列化。<br>(2) 采用类hashmap的数据结构，插入数据快。             | (1) 不支持combine和sort <br>(2) 每个分区都要对应生成一个临时文件，会产生过多的临时文件。 | 适合分区数较少(默认小于等于200)且没有combine的的情况.                                                      |
-| UnsafeShuffleWriter | (1) 只经过一次序列化。<br>(2) spill到磁盘的文件数目有限，不再基于分区数，可以支持更大的分区。 | (1) 不支持combine, sort <br>(2) 写入顺序Record顺序会打乱，要求supportsRelocationOfSerializedObjects。| 适用于没有combine的情况，且支持supportsRelocationOfSerializedObjects，并且支持最大支持分区数为16777216。 |
-| SortShuffleWriter | (1) 支持combine, sort <br> (2) 适合于所有场景 <br> (3)  spill到磁盘的文件数目有限 |     (1) 需要进行多次序列化 |  适用于所有场景。                                                                                          | 
+| writer | 优点                                                      | 缺点                                                                              | 场景                                                                                         |
+| --- |---------------------------------------------------------|---------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
+| BypassMergeSortShuffleWriter | (1) 只经过一次序列化。<br>(2) 采用类hashmap的数据结构，插入数据快。             | (1) 不支持combine <br>(2) 每个分区都要对应生成一个临时文件，会产生过多的临时文件。                             | 适合分区数较少(默认小于等于200)且没有combine的的情况.                                                      |
+| UnsafeShuffleWriter | (1) 只经过一次序列化。<br>(2) spill到磁盘的文件数目有限，不再基于分区数，可以支持更大的分区。 | (1) 不支持combine <br>(2) 写入顺序Record顺序会打乱，要求supportsRelocationOfSerializedObjects。 | 适用于没有combine的情况，且支持supportsRelocationOfSerializedObjects，并且支持最大支持分区数为16777216。 |
+| SortShuffleWriter | (1) 支持combine <br> (2) 适合于所有场景 <br> (3)  spill到磁盘的文件数目有限 | (1) 需要进行多次序列化                                                                   |  适用于所有场景。                                                                                          |
 
 ### 1.3.2 shuffle读
 
